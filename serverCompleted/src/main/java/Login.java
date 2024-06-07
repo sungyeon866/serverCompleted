@@ -38,7 +38,7 @@ public class Login {
                     ) {
                 System.out.println("Login successful");
                 int remainingTime = document.contains("remainingTime") ? document.getLong("remainingTime").intValue() : 0;
-                new MainFrame();
+                new MainFrame(firestore, id);
                 new TimerApp(id, remainingTime, firestore);
                 return true;
             } else {
@@ -52,8 +52,12 @@ public class Login {
     }
 }
 class MainFrame extends JFrame {
+    private Firestore firestore;
+    private String userId;
+    public MainFrame(Firestore firestore, String userId) {
+        this.firestore = firestore;
+        this.userId = userId;
 
-    public MainFrame() {
         // 초기화면
         setTitle("Main Menu");
         setSize(500, 600);
@@ -63,21 +67,26 @@ class MainFrame extends JFrame {
         // 주문하기, 종료 버튼
         JButton orderButton = new JButton("주문하기");
         JButton exitButton = new JButton("종료");
-
+        JButton moneyButton = new JButton("충전하기");
         // 버튼 사이즈 설정
         Dimension buttonSize = new Dimension(150, 50);
         orderButton.setPreferredSize(buttonSize);
+        moneyButton.setPreferredSize(buttonSize);
         exitButton.setPreferredSize(buttonSize);
 
         // 폰트, 글자 크기 설정
         Font buttonFont = new Font("Malgun Gothic", Font.BOLD, 20);
         orderButton.setFont(buttonFont);
+        moneyButton.setFont(buttonFont);
         exitButton.setFont(buttonFont);
 
         // 버튼 클릭 -> 메뉴주문창
         orderButton.addActionListener(e -> {
-            new MenuOrderSystem3();
+            new MenuOrderSystem3(firestore, userId);
             dispose();
+        });
+        moneyButton.addActionListener(e -> {
+            new MoneyCharger(firestore, userId);
         });
 
         exitButton.addActionListener(e -> System.exit(0));
@@ -92,11 +101,14 @@ class MainFrame extends JFrame {
 
         gbc.gridx = 1;
         add(exitButton, gbc);
-
+        gbc.gridy = 1;
+        add(moneyButton, gbc);
         setVisible(true);
     }
 }
 class MenuOrderSystem3 extends JFrame {
+    private Firestore firestore;
+    private String userId;
     private Map<String, Integer> menuPrices = new LinkedHashMap<>();
     private Map<String, Integer> cart = new LinkedHashMap<>();
     private JPanel cartPanel = new JPanel();
@@ -108,7 +120,11 @@ class MenuOrderSystem3 extends JFrame {
     private JButton payButton = new JButton("결제하기");
     private JButton homeButton = new JButton("초기화면");
 
-    public MenuOrderSystem3() {
+
+    public MenuOrderSystem3(Firestore firestore, String userId) {
+        this.firestore = firestore;
+        this.userId = userId;
+
         setTitle("Menu Order System");
         setSize(700, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -145,9 +161,10 @@ class MenuOrderSystem3 extends JFrame {
 
         payButton.addActionListener(this::performPayment);
         homeButton.addActionListener(e -> {
-            new MainFrame();
+            new MainFrame(firestore, userId);
             dispose();
         });
+
 
         setVisible(true);
     }
