@@ -42,6 +42,9 @@ public class TimerApp extends Frame {
         addButton.addActionListener(this::addTime);
         add(addButton);
 
+Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            saveRemainingTime(); // 예시로 추가하고자 하는 코드
+        }));
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent we) {
