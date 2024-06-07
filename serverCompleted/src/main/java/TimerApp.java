@@ -1,9 +1,10 @@
+import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.DocumentReference;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -12,8 +13,6 @@ import java.util.TimerTask;
 
 public class TimerApp extends Frame {
     private Label timeLabel;
-    private TextField inputField;
-    private Button addButton;
     private Timer timer;
     private int remainingTime;
     private String userId;
@@ -25,26 +24,25 @@ public class TimerApp extends Frame {
         this.firestore = firestore;
 
         setTitle("Timer");
-        setSize(400, 200);
-        setLayout(new GridLayout(3, 2));
+        setSize(400, 600);
+        setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
 
         timeLabel = new Label("00:00:00", Label.CENTER);
         timeLabel.setFont(new Font("Arial", Font.BOLD, 36));
-        add(timeLabel);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.BOTH;
+        add(timeLabel, gbc);
 
-        Label inputLabel = new Label("Add Time (sec):");
-        add(inputLabel);
+        gbc.gridwidth = 1; // Reset gridwidth
+        gbc.gridy = 1; // Move to the next row
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        add(createButtonPanel(), gbc);
 
-        inputField = new TextField();
-        add(inputField);
-
-        addButton = new Button("Add Time");
-        addButton.addActionListener(this::addTime);
-        add(addButton);
-
-Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            saveRemainingTime(); // 예시로 추가하고자 하는 코드
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::saveRemainingTime));
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent we) {
@@ -62,21 +60,6 @@ Runtime.getRuntime().addShutdownHook(new Thread(() -> {
         updateTimeLabel();
 
         setVisible(true);
-    }
-
-    private void addTime(ActionEvent e) {
-        try {
-            int timeToAdd = Integer.parseInt(inputField.getText());
-            remainingTime += timeToAdd;
-            updateTimeLabel();
-            inputField.setText("");
-
-            if (remainingTime > 0 && (timer == null || timerHasStopped())) {
-                startTimer();
-            }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid number.");
-        }
     }
 
     private boolean timerHasStopped() {
@@ -135,6 +118,86 @@ Runtime.getRuntime().addShutdownHook(new Thread(() -> {
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Failed to update remaining time.");
+        }
+    }
+
+    private JPanel createButtonPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        addButtonToPanel(panel, "35 minutes 1000 won", 0, 0, gbc);
+        addButtonToPanel(panel, "1 hour 20 minutes 2000 won", 1, 0, gbc);
+        addButtonToPanel(panel, "2 hours 3000 won", 0, 1, gbc);
+        addButtonToPanel(panel, "2 hours 40 minutes 4000 won", 1, 1, gbc);
+        addButtonToPanel(panel, "3 hours 30 minutes 5000 won", 0, 2, gbc);
+
+        return panel;
+    }
+
+    private void addButtonToPanel(JPanel panel, String text, int x, int y, GridBagConstraints gbc) {
+        JButton button = new JButton("<html>" + text.replace(" ", "<br>") + "</html>");
+        button.addActionListener(e -> addPredefinedTime(text));
+        button.setFont(new Font("Malgun Gothic", Font.PLAIN, 14));
+        gbc.gridx = x;
+        gbc.gridy = y;
+        panel.add(button, gbc);
+    }
+
+    private void addPredefinedTime(String item) {
+        try {
+            int timeToAdd = 0;
+            int cost = 0;
+            switch (item) {
+                case "35 minutes 1000 won":
+                    timeToAdd = 35 * 60;
+                    cost = 1000;
+                    break;
+                case "1 hour 20 minutes 2000 won":
+                    timeToAdd = 80 * 60;
+                    cost = 2000;
+                    break;
+                case "2 hours 3000 won":
+                    timeToAdd = 120 * 60;
+                    cost = 3000;
+                    break;
+                case "2 hours 40 minutes 4000 won":
+                    timeToAdd = 160 * 60;
+                    cost = 4000;
+                    break;
+                case "3 hours 30 minutes 5000 won":
+                    timeToAdd = 210 * 60;
+                    cost = 5000;
+                    break;
+            }
+
+            DocumentReference docRef = firestore.collection("users").document(userId);
+            ApiFuture<DocumentSnapshot> future = docRef.get();
+            DocumentSnapshot document = future.get();
+            User user = document.toObject(User.class);
+
+            if (user != null) {
+                int currentMoney = user.getMoney();
+                if (currentMoney < cost) {
+                    JOptionPane.showMessageDialog(this, "Not enough money to add time.");
+                    return;
+                }
+                docRef.update("money", currentMoney - cost).get();
+                remainingTime += timeToAdd;
+                updateTimeLabel();
+                if (remainingTime > 0 && (timer == null || timerHasStopped())) {
+                    startTimer();
+                }
+                JOptionPane.showMessageDialog(this, "Added " + (timeToAdd / 60) + " minutes for " + cost + " won.");
+            } else {
+                JOptionPane.showMessageDialog(this, "User data not found");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error updating user data");
         }
     }
 }
